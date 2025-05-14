@@ -1,0 +1,175 @@
+---
+title: "International Investment Position: HedgeAnalytics"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    theme:
+      version: 4
+      bootswatch: solar
+      bg: "#1e3142"
+      fg: "#CCDDF3"
+      primary: "#3b4d5b"
+      secondary: "#123051"
+      info: "#3399f3"
+      navbar-bg: "#3b4d5b"
+      font_scale: 1.0
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(flexdashboard)
+library(shiny)
+library(shinyWidgets)
+library(bslib)
+library(readxl)
+library(highcharter)
+library(DT)
+library(stargazer)
+
+
+```
+
+Inputs {.sidebar data-width=300 bg="#1e3142"}
+===========================================
+
+```{r}
+source("R/dashboard_functions.R")
+
+## - input data here 
+data <- readr::read_csv("Data/IIP.csv", show_col_types = FALSE)
+data$Date <- as.Date(my(data$Date))
+data[,-1] <- lapply(data[,-1], as.numeric)
+dataPctGDP <- data[,c(1,16:25)]
+
+IIP <- names(data[,-c(1,16:23)])
+pctGDP <- names(dataPctGDP[,-c(1:2)])
+citation <- 'Source: Bureau of Economic Analysis, HedgeAnalytics'
+
+selectizeInput(
+    inputId = "IIP",
+    label= "Choose IIP components to visualize",
+    choices = IIP,
+    selected = c(
+      "Net International Investment Position"),
+    multiple = TRUE,
+    options = list(maxItems = 5)
+)
+
+selectizeInput(
+    inputId = "pctGDP",
+    label= 'Percentage of GDP',
+    choices = c(pctGDP),
+    selected = c(pctGDP[1]),
+    multiple = TRUE,
+    options = list(maxItems = 5)
+  )
+
+dateRangeInput(
+    inputId = "daterange",
+    label = "Select the date range:",
+    format = "yyyy-mm-dd",
+    start = "2006-01-01",
+    end = Sys.Date(),
+    min = "2005-01-01",
+    max = Sys.Date()
+)
+
+  radioButtons(
+     inputId = "rangeSelector",
+     label = "Show range selector on charts?",
+     choices = c("Show"=TRUE,"Hide"=""),
+     selected = "",
+     inline = TRUE
+   )
+```
+
+
+
+```{r}
+
+# # define global variables for use in render sections
+dates <- reactive({input$daterange})
+dep_var <- reactive({input$dep_variables})
+ind_var <- reactive({input$ind_variables})
+rangeselect <- reactive({input$rangeSelector})
+
+dataSelected <- reactive({
+
+ alldata <-
+   data |>
+   select(Date, all_of(input$IIP)) |>
+   dplyr::filter(Date > input$daterange[1], Date < input$daterange[2])
+
+  return(alldata)
+
+})
+
+dataPctSelected <- reactive({
+  
+ alldata <-
+   dataPctGDP |>
+   select(Date, all_of(input$pctGDP)) |>
+   dplyr::filter(Date > input$daterange[1], Date < input$daterange[2])
+
+  return(alldata)
+
+})
+
+
+
+```
+Charts
+=====================================  
+
+Column
+-------------------------------------
+    
+### 
+
+```{r}
+
+
+renderHighchart({
+# # map the global reactive variables to use within this render statement
+  rangeselect <- rangeselect()
+  alldata <- dataSelected()
+
+# # # any further data wrangling
+
+    lngdata <- lngdf(alldata)
+    titletxt <- "Selected IIP components: USD mln"
+    yaxistitle <- "USD mlns"
+
+# # #plot the result
+    
+    p <- hchartHA(lngdata, titletxt, citation,yaxistitle,rangeselect)
+
+  p   
+})
+```
+
+###
+
+```{r}
+renderHighchart({
+# # map the global reactive variables to use within this render statement
+  rangeselect <- rangeselect()
+  alldata <- dataPctSelected()
+  alldata[,-1] <- alldata[,-1]*100
+  rangeselect <- FALSE
+# # # any further data wrangling
+
+    lngdata <- lngdf(alldata)
+    titletxt <- "Selected IIP components: % GDP"
+    yaxistitle <- "% GDP"
+# # #plot the result
+    
+    p <- hchartHApct(lngdata, titletxt, citation,yaxistitle,rangeselect)
+
+  p   
+})
+
+```
+
+
+
