@@ -39,7 +39,7 @@ source("R/dashboard_functions.R")
 data <- readr::read_csv("Data/IIP.csv", show_col_types = FALSE)
 data$Date <- as.Date(my(data$Date))
 data[,-1] <- lapply(data[,-1], as.numeric)
-dataPctGDP <- data[,c(1,16:25)]
+dataPctGDP <- data[,c(1,16:27)]
 
 IIP <- names(data[,-c(1,16:23)])
 pctGDP <- names(dataPctGDP[,-c(1:2)])
